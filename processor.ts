@@ -134,7 +134,6 @@ export class Processor {
     operand: number,
     getAddress: (operand: number) => number
   ) {
-    getAddress(operand);
     this.writeMem(getAddress(operand), this.registers[register]);
   }
 
@@ -239,6 +238,7 @@ export class Processor {
   private break() {
     this.pushPC(1); //Add an additional 1 to the PC because BRK is secretly a 2 byte operation
     this.push(this.registers[FLAGS] | (FLAG_B & FLAG_U));
+    this.setFlag(FLAG_B);
     //get the location from the interrupt vector and jump to it
     const lowByte = this.readMem(0xfffe);
     const highByte = this.readMem(0xffff);
@@ -450,7 +450,21 @@ export class Processor {
   };
 
   // processes the next instruction, returns the number of clock cycles it took
-  public tick(): number {
+  public tick(debug = false): number {
+    const initialPC = this.bigRegisters[PC];
+    const logRegisters = () => {
+      console.log({
+        initialPC: initialPC.toString(16),
+        PC: this.bigRegisters[PC].toString(16),
+        SP: this.registers[SP].toString(16),
+        A: this.registers[A].toString(16),
+        X: this.registers[X].toString(16),
+        Y: this.registers[Y].toString(16),
+        FLAGS: this.registers[FLAGS].toString(2),
+        opcode: opcode.toString(16),
+        operand: operand.toString(16),
+      });
+    };
     this.cycles = 0;
     const opcode = this.fetch();
     // although some instructions are 1 byte it always gets the next byte from
@@ -956,8 +970,12 @@ export class Processor {
         break;
 
       default:
-        console.log(this.bigRegisters, this.registers);
-        throw new Error("invalid opcode");
+        logRegisters();
+        throw new Error("invalid opcode: " + opcode.toString(16));
+    }
+
+    if (debug) {
+      logRegisters();
     }
 
     return this.cycles;
