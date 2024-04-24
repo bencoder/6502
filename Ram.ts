@@ -1,4 +1,4 @@
-import { Addressable } from "./addressable";
+import { Addressable } from "./Addressable";
 
 export class Ram implements Addressable {
   private data: Uint8Array;

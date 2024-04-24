@@ -1,4 +1,4 @@
-import { Addressable } from "./addressable";
+import { Addressable } from "./Addressable";
 
 const PC = 0;
 const SP = 0;

@@ -1,4 +1,4 @@
-import { Addressable } from "./addressable";
+import { Addressable } from "./Addressable";
 import * as readline from "readline";
 
 export class ConsoleIO implements Addressable {

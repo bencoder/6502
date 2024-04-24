@@ -1,8 +1,8 @@
 import { ConsoleIO } from "./ConsoleIO";
-import { MemoryMap } from "./memorymap";
-import { Processor } from "./processor";
-import { Ram } from "./ram";
-import { Rom } from "./rom";
+import { MemoryMap } from "./MemoryMap";
+import { Processor } from "./Processor";
+import { Ram } from "./Ram";
+import { Rom } from "./Rom";
 
 const romData = new Uint8Array(0x8000);
 

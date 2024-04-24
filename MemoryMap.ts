@@ -1,4 +1,4 @@
-import { Addressable } from "./addressable";
+import { Addressable } from "./Addressable";
 
 interface MemoryPart {
   start: number;
