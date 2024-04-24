@@ -7,33 +7,33 @@ import { Rom } from "./rom";
 const romData = new Uint8Array(0x8000);
 
 //START:
-//LDA 0x7000
+//LDA 0x7000            #Read character from input
 romData[0x0000] = 0xad;
 romData[0x0001] = 0x00;
 romData[0x0002] = 0x70;
 
-//BEQ START
+//BEQ START             #If zero, return to start
 romData[0x0003] = 0xf0;
 romData[0x0004] = -5;
 
-//TAX
+//TAX                   #Copy char to X
 romData[0x0005] = 0xaa;
 
-//SEC //set carry, so the subtract works as expected
+//SEC                   #set carry, so the subtract works as expected
 romData[0x0006] = 0x38;
 
-//SBC 0x20 //0x20 = first printable character - space
+//SBC 0x20              #subtract 0x20 = first printable character - space
 romData[0x0007] = 0xe9;
 romData[0x0008] = 0x20;
 
-//BMI ENDLINE //jump to ENDLINE if character read was less than 0x20
+//BMI ENDLINE           #jump to ENDLINE if character read was less than 0x20
 romData[0x0009] = 0x30;
 romData[0x000a] = 0x07;
 
-//INX
+//INX                   #increment character by 1
 romData[0x000b] = 0xe8;
 
-//STX 0x7000 //output character incremented by 1
+//STX 0x7000            #print incremented character
 romData[0x000c] = 0x8e;
 romData[0x000d] = 0x00;
 romData[0x000e] = 0x70;
@@ -43,8 +43,8 @@ romData[0x000f] = 0x4c;
 romData[0x0010] = 0x00;
 romData[0x0011] = 0x80;
 
-//ENDLINE:  //Print CRLF
-//LDA #0x0A //CR
+//ENDLINE:              #Print CRLF
+//LDA #0x0A             #CR
 romData[0x0012] = 0xa9;
 romData[0x0013] = 0x0d;
 //STA 0x7000
@@ -52,7 +52,7 @@ romData[0x0014] = 0x8d;
 romData[0x0015] = 0x00;
 romData[0x0016] = 0x70;
 
-//LDA #0x0D //LF
+//LDA #0x0D             ##LF
 romData[0x0017] = 0xa9;
 romData[0x0018] = 0x0a;
 //STA 0x7000
