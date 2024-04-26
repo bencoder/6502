@@ -9,7 +9,7 @@ const processor = new Processor(ram);
 processor.setPC(0x0400);
 
 //output debug data when the PC is between these values
-const traceStart = 0x346f;
+const traceStart = 0xffff;
 const traceEnd = 0x3500;
 
 let cycles = 0;

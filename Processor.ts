@@ -152,10 +152,30 @@ export class Processor {
   }
 
   private convertToBCD(value: number): number {
-    value = value % 100; //discard any remainder
+    while (value < 0) {
+      value += 100;
+    }
+    value = value % 100; //discard any remainder over 100
     const highNibble = Math.floor(value / 10);
     const lowNibble = value - highNibble * 10;
-    return highNibble << (4 + lowNibble);
+    return (highNibble << 4) + lowNibble;
+  }
+
+  //We can't use the adc with ~v2 for subtraction in decimal mode
+  private decimalSub(v1: number, v2: number) {
+    const c = (this.registers[FLAGS] & FLAG_C) > 0 ? 0 : 1; //not-c
+    v1 = this.convertFromBCD(v1);
+    v2 = this.convertFromBCD(v2);
+    const sum = v1 - v2 - c;
+    if (sum < 0) {
+      this.unsetFlag(FLAG_C);
+    } else {
+      this.setFlag(FLAG_C);
+    }
+    const result = this.convertToBCD(sum);
+    //only C is valid in Decimal mode, but try to set the others anyway
+    this.setFlagsFor(result);
+    return result;
   }
 
   private internaladc(v1: number, v2: number) {
@@ -398,9 +418,15 @@ export class Processor {
   private sbc(operand: number, getAddress?: (operand: number) => number) {
     const v1 = this.registers[A];
     const v2 = getAddress ? this.readMem(getAddress(operand)) : operand;
-    //sbc should be the same operation as adc but with the bits of the memory byte flipped
-    //>>> coerces to an unsigned int so that the bitwise invert ~ works as expected, otherwise in JS ~0xff == -255
-    const sum = this.internaladc(v1, (~v2 >>> 0) & 0xff);
+    const decimalMode = (this.registers[FLAGS] & FLAG_D) > 0;
+    let sum;
+    if (decimalMode) {
+      sum = this.decimalSub(v1, v2);
+    } else {
+      //binary sbc should be the same operation as adc but with the bits of the memory byte flipped
+      //>>> coerces to an unsigned int so that the bitwise invert ~ works as expected, otherwise in JS ~0xff == -255
+      sum = this.internaladc(v1, (~v2 >>> 0) & 0xff);
+    }
     this.registers[A] = sum;
   }
 
