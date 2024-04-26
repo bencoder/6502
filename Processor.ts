@@ -237,12 +237,12 @@ export class Processor {
 
   private break() {
     this.pushPC(1); //Add an additional 1 to the PC because BRK is secretly a 2 byte operation
-    this.push(this.registers[FLAGS] | (FLAG_B & FLAG_U));
-    this.setFlag(FLAG_B);
+    this.push(this.registers[FLAGS] | FLAG_B | FLAG_U);
+    this.setFlag(FLAG_I);
     //get the location from the interrupt vector and jump to it
     const lowByte = this.readMem(0xfffe);
     const highByte = this.readMem(0xffff);
-    this.registers[PC] = highByte * 0x100 + lowByte;
+    this.bigRegisters[PC] = highByte * 0x100 + lowByte;
   }
 
   private incdec(
@@ -272,7 +272,7 @@ export class Processor {
     getAddress: (operand: number) => number
   ) {
     const address = getAddress(operand);
-    this.pushPC();
+    this.pushPC(-1);
     this.bigRegisters[PC] = address;
   }
 
@@ -280,7 +280,7 @@ export class Processor {
   private lsrValue(value: number) {
     const carry = value & 1;
     const result = value >> 1;
-    this.setFlagsFor(value);
+    this.setFlagsFor(result);
     if (carry) {
       this.setFlag(FLAG_C);
     } else {
@@ -296,13 +296,15 @@ export class Processor {
   }
 
   private plp() {
+    const oldFlags = this.registers[FLAGS];
     let data = this.pull();
-    if (this.registers[FLAGS] & FLAG_B) {
+    //Set the B and U flags to whatever they were rather than what was on the stack
+    if (oldFlags & FLAG_B) {
       data = data | FLAG_B;
     } else {
       data = data & ~FLAG_B;
     }
-    if (this.registers[FLAGS] & FLAG_U) {
+    if (oldFlags & FLAG_U) {
       data = data | FLAG_U;
     } else {
       data = data & ~FLAG_U;
@@ -358,27 +360,27 @@ export class Processor {
 
   private returnInterrupt() {
     this.plp();
-    this.returnSubroutine();
+    this.returnSubroutine(0);
   }
 
-  private returnSubroutine() {
+  private returnSubroutine(offset = 1) {
     const lowByte = this.pull();
     const highByte = this.pull();
-    this.bigRegisters[PC] = highByte * 0x100 + lowByte;
+    this.bigRegisters[PC] = highByte * 0x100 + lowByte + offset;
   }
 
   private sbc(operand: number, getAddress?: (operand: number) => number) {
     const v1 = this.registers[A];
     const v2 = getAddress ? this.readMem(getAddress(operand)) : operand;
     //sbc should be the same operation as adc but with the bits of the memory byte flipped
-    const sum = this.internaladc(v1, ~v2);
+    const sum = this.internaladc(v1, (~v2 >>> 0) & 0xff);
     this.registers[A] = sum;
   }
 
   // transfer data between registers
-  private transfer(register1: number, register2: number) {
+  private transfer(register1: number, register2: number, setFlags = true) {
     this.registers[register2] = this.registers[register1];
-    this.setFlagsFor(this.registers[register2]);
+    if (setFlags) this.setFlagsFor(this.registers[register2]);
   }
 
   // push byte to stack
@@ -393,10 +395,14 @@ export class Processor {
     this.push(this.byte(currentPC)); //push low byte
   }
 
+  private pullA() {
+    this.registers[A] = this.pull();
+    this.setFlagsFor(this.registers[A]);
+  }
+
   private pull(): number {
     this.registers[SP] = this.byte(this.registers[SP] + 1);
     const data = this.readMem(0x0100 + this.registers[SP]);
-    this.setFlagsFor(data);
     return data;
   }
 
@@ -454,15 +460,15 @@ export class Processor {
     const initialPC = this.bigRegisters[PC];
     const logRegisters = () => {
       console.log({
-        initialPC: initialPC.toString(16),
-        PC: this.bigRegisters[PC].toString(16),
-        SP: this.registers[SP].toString(16),
-        A: this.registers[A].toString(16),
-        X: this.registers[X].toString(16),
-        Y: this.registers[Y].toString(16),
-        FLAGS: this.registers[FLAGS].toString(2),
-        opcode: opcode.toString(16),
-        operand: operand.toString(16),
+        initialPC: initialPC.toString(16).padStart(4, "0"),
+        PC: this.bigRegisters[PC].toString(16).padStart(4, "0"),
+        SP: this.registers[SP].toString(16).padStart(2, "0"),
+        A: this.registers[A].toString(16).padStart(2, "0"),
+        X: this.registers[X].toString(16).padStart(2, "0"),
+        Y: this.registers[Y].toString(16).padStart(2, "0"),
+        FLAGS: this.registers[FLAGS].toString(2).padStart(8, "0"),
+        opcode: opcode.toString(16).padStart(2, "0"),
+        operand: operand.toString(16).padStart(2, "0"),
       });
     };
     this.cycles = 0;
@@ -825,7 +831,7 @@ export class Processor {
         break;
 
       case 0x68: // PLA
-        this.registers[A] = this.pull();
+        this.pullA();
         break;
 
       case 0x28: // PLP
@@ -957,13 +963,13 @@ export class Processor {
         this.transfer(A, Y);
         break;
       case 0xba: // TSX
-        this.transfer(SP, A);
+        this.transfer(SP, X);
         break;
       case 0x8a: // TXA
         this.transfer(X, A);
         break;
       case 0x9a: // TXS
-        this.transfer(X, SP);
+        this.transfer(X, SP, false);
         break;
       case 0x98: // TYA
         this.transfer(Y, A);
