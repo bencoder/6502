@@ -26,13 +26,13 @@ RESET:          CLD             ; Clear decimal arithmetic mode.
                 LDY #$7F
 NOTCR:          CMP #$08        ; Backspace?
                 BEQ BACKSPACE   ; Yes.
-                CMP #$1B        ; ESC?
+                CMP #$9B        ; ESC?
                 BEQ ESCAPE      ; Yes.
                 INY             ; Advance text index.
                 BPL NEXTCHAR    ; Auto ESC if > 127.
-ESCAPE:         LDA #'\'        ; "\".
+ESCAPE:         LDA #'\'+$80    ; "\".
                 JSR ECHO        ; Output it.
-GETLINE:        LDA #$0D        ; CR.
+GETLINE:        LDA #$8D        ; CR.
                 JSR ECHO        ; Output it.
                 LDA #$0A        ; LF.
                 JSR ECHO        ; Output it.
@@ -41,33 +41,33 @@ BACKSPACE:      DEY             ; Back up text index.
                 BMI GETLINE     ; Beyond start of line, reinitialize.
 NEXTCHAR:       LDA INOUT       ; Key in?
                 BEQ NEXTCHAR    ; Loop until ready.
+                ORA #$80        ; Set top bit
                 STA IN,Y        ; Add to text buffer.
                 JSR ECHO        ; Display character.
-                CMP #$0D        ; CR?
+                CMP #$8D        ; CR?
                 BNE NOTCR       ; No.
                 LDY #$FF        ; Reset text index.
                 LDA #$00        ; For XAM mode.
                 TAX             ; 0->X.
-SETBLOCK:       ASL
 SETSTOR:        ASL             ; Leaves $7B if setting STOR mode.
 SETMODE:        STA MODE        ; $00=XAM, $7B=STOR, $AE=BLOCK XAM.
 BLSKIP:         INY             ; Advance text index.
 NEXTITEM:       LDA IN,Y        ; Get character.
-                CMP #$0D        ; CR?
+                CMP #$8D        ; CR?
                 BEQ GETLINE     ; Yes, done this line.
-                CMP #$2E        ; "."?
+                CMP #'.'+$80    ; "."?
                 BCC BLSKIP      ; Skip delimiter.
-                BEQ SETBLOCK    ; Set BLOCK XAM mode.
-                CMP #$3A        ; ":"?
+                BEQ SETMODE     ; Set BLOCK XAM mode.
+                CMP #':'+$80    ; ":"?
                 BEQ SETSTOR     ; Yes. Set STOR mode.
-                CMP #$52        ; "R"?
+                CMP #'R'+$80    ; "R"?
                 BEQ RUN         ; Yes. Run user program.
                 STX L           ; $00->L.
                 STX H           ;  and H.
                 STY YSAV        ; Save Y for comparison.
 NEXTHEX:        LDA IN,Y        ; Get character for hex test.
-                EOR #$30        ; Map digits to $0-9.
-                CMP #$3A        ; Digit?
+                EOR #$B0        ; Map digits to $0-9.
+                CMP #$0A        ; Digit?
                 BCC DIG         ; Yes.
                 ADC #$88        ; Map letter "A"-"F" to $FA-FF.
                 CMP #$FA        ; Hex letter?
@@ -103,15 +103,17 @@ SETADR:         LDA L-1,X       ; Copy hex data to
                 DEX             ; Next of 2 bytes.
                 BNE SETADR      ; Loop unless X=0.
 NXTPRNT:        BNE PRDATA      ; NE means no address to print.
-                LDA #$0D        ; CR.
+                LDA #$8D        ; CR.
+                JSR ECHO        ; Output it.
+                LDA #$0A        ; LF.
                 JSR ECHO        ; Output it.
                 LDA XAMH        ; ‘Examine index’ high-order byte.
                 JSR PRBYTE      ; Output it in hex format.
                 LDA XAML        ; Low-order ‘examine index’ byte.
                 JSR PRBYTE      ; Output it in hex format.
-                LDA #$3A        ; ":".
+                LDA #':'+$80    ; ":".
                 JSR ECHO        ; Output it.
-PRDATA:         LDA #$20        ; Blank.
+PRDATA:         LDA #$A0        ; Blank.
                 JSR ECHO        ; Output it.
                 LDA (XAML,X)    ; Get data byte at ‘examine index’.
                 JSR PRBYTE      ; Output it in hex format.
@@ -135,15 +137,16 @@ PRBYTE:         PHA             ; Save A for LSD.
                 JSR PRHEX       ; Output hex digit.
                 PLA             ; Restore A.
 PRHEX:          AND #$0F        ; Mask LSD for hex print.
-                ORA #$30        ; Add "0".
-                CMP #$3A        ; Digit?
+                ORA #'0'+$80    ; Add "0".
+                CMP #$BA        ; Digit?
                 BCC ECHO        ; Yes, output it.
                 ADC #$06        ; Add offset for letter.
-ECHO:           STA INOUT       ; Output character
+ECHO:           
+                PHA
+                AND #$7F
+                STA INOUT       ; Output character
+                PLA
                 RTS             ; Return.
-
-                BRK             ; unused
-                BRK             ; unused
                 
 ; Interrupt Vectors
                 .org $FFFA
