@@ -271,8 +271,8 @@ export class Processor {
     operand: number,
     getAddress: (operand: number) => number
   ) {
-    this.pushPC();
     const address = getAddress(operand);
+    this.pushPC();
     this.bigRegisters[PC] = address;
   }
 
