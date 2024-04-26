@@ -58,6 +58,14 @@ export class Processor {
     this.reset();
   }
 
+  public setPC(pc: number) {
+    this.bigRegisters[PC] = pc;
+  }
+
+  public getPC() {
+    return this.bigRegisters[PC];
+  }
+
   public reset() {
     // set the PC to the reset vector
     this.registers = new Uint8Array(5);
