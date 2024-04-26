@@ -381,6 +381,7 @@ export class Processor {
     const v1 = this.registers[A];
     const v2 = getAddress ? this.readMem(getAddress(operand)) : operand;
     //sbc should be the same operation as adc but with the bits of the memory byte flipped
+    //>>> coerces to an unsigned int so that the bitwise invert ~ works as expected, otherwise in JS ~0xff == -255
     const sum = this.internaladc(v1, (~v2 >>> 0) & 0xff);
     this.registers[A] = sum;
   }
