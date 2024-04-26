@@ -145,23 +145,41 @@ export class Processor {
     this.writeMem(getAddress(operand), this.registers[register]);
   }
 
+  private convertFromBCD(value: number): number {
+    const lowNibble = value & 0x0f;
+    const highNibble = (value & 0xf0) >> 4;
+    return highNibble * 10 + lowNibble;
+  }
+
+  private convertToBCD(value: number): number {
+    value = value % 100; //discard any remainder
+    const highNibble = Math.floor(value / 10);
+    const lowNibble = value - highNibble * 10;
+    return highNibble << (4 + lowNibble);
+  }
+
   private internaladc(v1: number, v2: number) {
     const c = (this.registers[FLAGS] & FLAG_C) > 0 ? 1 : 0;
-    const result = v1 + v2 + c;
-    if (result > 0xff) {
-      this.setFlag(FLAG_C); // carry
+    const decimalMode = (this.registers[FLAGS] & FLAG_D) > 0;
+    if (decimalMode) {
+      v1 = this.convertFromBCD(v1);
+      v2 = this.convertFromBCD(v2);
+    }
+    const sum = v1 + v2 + c;
+    if (sum > (decimalMode ? 99 : 0xff)) {
+      this.setFlag(FLAG_C);
     } else {
       this.unsetFlag(FLAG_C);
     }
-    const sum = this.byte(result);
+    const result = decimalMode ? this.convertToBCD(sum) : this.byte(sum);
     // calculate overflow:
-    if (((v1 ^ sum) & (v2 ^ sum) & 0x80) > 0) {
+    if (((v1 ^ result) & (v2 ^ result) & 0x80) > 0) {
       this.setFlag(FLAG_V);
     } else {
       this.unsetFlag(FLAG_V);
     }
-    this.setFlagsFor(sum);
-    return sum;
+    this.setFlagsFor(result);
+    return result;
   }
 
   private adc(operand: number, getAddress?: (operand: number) => number) {
